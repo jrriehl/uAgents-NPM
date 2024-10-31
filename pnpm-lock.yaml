@@ -10,13 +10,16 @@ importers:
     dependencies:
       '@fetchai/uagents':
         specifier: 'file:'
-        version: 'file:'
+        version: file:(typescript@5.6.2)
       '@jest/globals':
         specifier: ^29.7.0
         version: 29.7.0
       '@types/node':
         specifier: ^22.7.5
         version: 22.7.5
+      uuid:
+        specifier: ^11.0.2
+        version: 11.0.2
       zod:
         specifier: ^3.23.8
         version: 3.23.8
@@ -2329,6 +2332,10 @@ packages:
     peerDependencies:
       browserslist: '>= 4.21.0'
 
+  uuid@11.0.2:
+    resolution: {integrity: sha512-14FfcOJmqdjbBPdDjFQyk/SdT4NySW4eM0zcG+HqbHP5jzuH56xO3J1DGhgs/cEMCfwYi3HQI1gnTO62iaG+tQ==}
+    hasBin: true
+
   v8-to-istanbul@9.3.0:
     resolution: {integrity: sha512-kiGUalWN+rgBJ/1OHZsBtU4rXZOfj/7rKQxULKlIzwzQSvMJUUNgPwJEEh7gU6xEVxC0ahoOBvN2YI8GH6FNgA==}
     engines: {node: '>=10.12.0'}
@@ -2396,6 +2403,7 @@ packages:
 
   zod@3.23.8:
     resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
+
 snapshots:
 
   '@ampproject/remapping@2.3.0':
@@ -3380,12 +3388,16 @@ snapshots:
   '@esbuild/win32-x64@0.23.1':
     optional: true
 
-  '@fetchai/uagents@file:':
+  '@fetchai/uagents@file:(typescript@5.6.2)':
     dependencies:
       '@jest/globals': 29.7.0
+      '@types/node': 22.7.5
+      uuid: 11.0.2
       zod: 3.23.8
+      zod-to-ts: 1.2.0(typescript@5.6.2)(zod@3.23.8)
     transitivePeerDependencies:
       - supports-color
+      - typescript
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -5085,6 +5097,8 @@ snapshots:
       browserslist: 4.24.0
       escalade: 3.2.0
       picocolors: 1.1.0
+
+  uuid@11.0.2: {}
 
   v8-to-istanbul@9.3.0:
     dependencies:
