@@ -59,11 +59,11 @@ function isUserAddress(address: string): boolean {
 }
 
 function keyDerivationHash(prefix: string, index: number): Buffer {
+  const hasher = sha256.create();
+  hasher.update(prefix);
   if (!(0 <= index && index < SHA_LENGTH)) {
     throw new Error('Index out of bounds');
   }
-  const hasher = sha256.create();
-  hasher.update(prefix);
   hasher.update(Buffer.from([index]));
   return Buffer.from(hasher.digest());
 }
