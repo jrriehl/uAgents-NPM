@@ -17,9 +17,6 @@ importers:
       '@types/node':
         specifier: ^22.7.5
         version: 22.7.5
-      uuid:
-        specifier: ^11.0.2
-        version: 11.0.2
       zod:
         specifier: ^3.23.8
         version: 3.23.8

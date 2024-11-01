@@ -38,7 +38,6 @@
         "@fetchai/uagents": "file:",
         "@jest/globals": "^29.7.0",
         "@types/node": "^22.7.5",
-        "uuid": "^11.0.2",
         "zod": "^3.23.8",
         "zod-to-ts": "^1.2.0"
     }
