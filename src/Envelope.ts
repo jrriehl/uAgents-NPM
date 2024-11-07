@@ -3,6 +3,18 @@ import { sha256 } from 'js-sha256';
 
 /**
  * Represents an envelope for message communication between agents.
+ * 
+ * Attributes:
+ *     version (number): The envelope version.
+ *     sender (string): The sender's address.
+ *     target (string): The target's address.
+ *     session (string): The session UUID that persists for back-and-forth dialogues between agents.
+ *     schemaDigest (string): The schema digest for the enclosed message.
+ *     protocolDigest (string?): The digest of the protocol associated with the message (optional).
+ *     payload (string?): The encoded message payload of the envelope (optional).
+ *     expires (number?): The expiration timestamp (optional).
+ *     nonce (number?): The nonce value (optional).
+ *     signature (string?): The envelope signature (optional).
  */
 export class Envelope {
   version: number;
@@ -53,6 +65,8 @@ export class Envelope {
 
   /**
    * Encode the payload value and store it in the envelope.
+   * 
+   * @param value The payload value to be encoded.
    */
   encodePayload(value: string): void {
     this.payload = Buffer.from(value).toString('base64');
@@ -60,6 +74,8 @@ export class Envelope {
 
   /**
    * Decode and retrieve the payload value from the envelope.
+   * 
+   * @returns The decoded payload value, or '' if payload is not present.
    */
   decodePayload(): string {
     if (!this.payload) {
@@ -70,6 +86,9 @@ export class Envelope {
 
   /**
    * Sign the envelope using the provided signing function.
+   * 
+   * @param identity The identity used for signing.
+   * @throws Error if signing fails
    */
   sign(identity: Identity): void {
     try {
@@ -81,6 +100,9 @@ export class Envelope {
 
   /**
    * Verify the envelope's signature.
+   * 
+   * @returns True if the signature is valid.
+   * @throws Error if the signature is missing.
    */
   verify(): boolean {
     if (!this.signature) {
@@ -91,6 +113,8 @@ export class Envelope {
 
   /**
    * Compute the digest of the envelope's content.
+   * 
+   * @returns The computed digest.
    */
   private _digest(): Buffer {
     const hasher = sha256.create();
@@ -161,6 +185,9 @@ export class EnvelopeHistoryEntry {
     this.payload = payload;
   }
 
+  /**
+   * Creates an EnvelopeHistoryEntry from an Envelope instance
+   */
   static fromEnvelope(envelope: Envelope): EnvelopeHistoryEntry {
     return new EnvelopeHistoryEntry({
       version: envelope.version,
@@ -169,7 +196,7 @@ export class EnvelopeHistoryEntry {
       session: envelope.session,
       schemaDigest: envelope.schemaDigest,
       protocolDigest: envelope.protocolDigest,
-      payload: envelope.decodePayload(),
+      payload: envelope.decodePayload()
     });
   }
 }
@@ -184,6 +211,9 @@ export class EnvelopeHistory {
     this.envelopes = [];
   }
 
+  /**
+   * Add a new entry to the history and apply retention policy
+   */
   addEntry(entry: EnvelopeHistoryEntry): void {
     this.envelopes.push(entry);
     this.applyRetentionPolicy();
