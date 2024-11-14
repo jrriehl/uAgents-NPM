@@ -32,6 +32,10 @@ export const DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30;
 export const DEFAULT_MAX_ENDPOINTS = 10;
 export const DEFAULT_SEARCH_LIMIT = 100;
 
+export const TESTNET_RPC = "https://rpc-dorado.fetch.ai";
+export const MAINNET_RPC = "https://rpc-fetchhub.fetch.ai";
+export const TESTNET_FAUCET = "https://faucet-dorado.fetch.ai";
+
 export function parseEndpointConfig(endpoint: string | string[] | { [key: string]: any } | null): AgentEndpoint[] {
   let endpoints: AgentEndpoint[] = [];
 

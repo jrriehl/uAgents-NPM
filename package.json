@@ -29,12 +29,17 @@
         "@babel/preset-env": "^7.25.8",
         "@babel/preset-typescript": "^7.25.7",
         "@changesets/cli": "^2.27.8",
+        "@types/jest": "^29.5.14",
         "babel-jest": "^29.7.0",
         "jest": "^29.7.0",
         "tsup": "^8.3.0",
         "typescript": "^5.6.2"
     },
     "dependencies": {
+        "@cosmjs/amino": "^0.32.4",
+        "@cosmjs/cosmwasm-stargate": "^0.32.4",
+        "@cosmjs/proto-signing": "^0.32.4",
+        "@cosmjs/stargate": "^0.32.4",
         "@fetchai/uagents": "file:",
         "@jest/globals": "^29.7.0",
         "@types/elliptic": "^6.4.18",
