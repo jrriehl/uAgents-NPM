@@ -32,6 +32,9 @@ importers:
       zod:
         specifier: ^3.23.8
         version: 3.23.8
+      zod-openapi:
+        specifier: ^3.3.0
+        version: 3.3.0(zod@3.23.8)
       zod-to-ts:
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.6.2)(zod@3.23.8)
@@ -56,7 +59,7 @@ importers:
         version: 29.7.0(@types/node@22.7.5)
       tsup:
         specifier: ^8.3.0
-        version: 8.3.0(typescript@5.6.2)
+        version: 8.3.0(typescript@5.6.2)(yaml@2.6.0)
       typescript:
         specifier: ^5.6.2
         version: 5.6.2
@@ -2421,6 +2424,11 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
+  yaml@2.6.0:
+    resolution: {integrity: sha512-a6ae//JvKDEra2kdi1qzCyrJW/WZCgFi8ydDV+eXExl95t+5R+ijnqHJbz9tmMh8FUjx3iv2fCQ4dclAQlO2UQ==}
+    engines: {node: '>= 14'}
+    hasBin: true
+
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
@@ -2432,6 +2440,12 @@ packages:
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
+
+  zod-openapi@3.3.0:
+    resolution: {integrity: sha512-9CouRzPrmKU4Rggb8dPgVrNq6SZTUjdMO+6TvpE2ylkDYlap/Agjce2LZwG4ZwEVEVyZ1s5KnkiL4hn//G3gIA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.21.4
 
   zod-to-ts@1.2.0:
     resolution: {integrity: sha512-x30XE43V+InwGpvTySRNz9kB7qFU8DlyEy7BsSTCHPH1R0QasMmHWZDCzYm6bVXtj/9NNJAZF3jW8rzFvH5OFA==}
@@ -3435,6 +3449,7 @@ snapshots:
       elliptic: 6.6.0
       js-sha256: 0.11.0
       zod: 3.23.8
+      zod-openapi: 3.3.0(zod@3.23.8)
       zod-to-ts: 1.2.0(typescript@5.6.2)(zod@3.23.8)
     transitivePeerDependencies:
       - supports-color
@@ -4872,9 +4887,11 @@ snapshots:
     dependencies:
       find-up: 4.1.0
 
-  postcss-load-config@6.0.1:
+  postcss-load-config@6.0.1(yaml@2.6.0):
     dependencies:
       lilconfig: 3.1.2
+    optionalDependencies:
+      yaml: 2.6.0
 
   prettier@2.8.8: {}
 
@@ -5127,7 +5144,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tsup@8.3.0(typescript@5.6.2):
+  tsup@8.3.0(typescript@5.6.2)(yaml@2.6.0):
     dependencies:
       bundle-require: 5.0.0(esbuild@0.23.1)
       cac: 6.7.14
@@ -5138,7 +5155,7 @@ snapshots:
       execa: 5.1.1
       joycon: 3.1.1
       picocolors: 1.1.0
-      postcss-load-config: 6.0.1
+      postcss-load-config: 6.0.1(yaml@2.6.0)
       resolve-from: 5.0.0
       rollup: 4.24.0
       source-map: 0.8.0-beta.0
@@ -5231,6 +5248,9 @@ snapshots:
 
   yallist@3.1.1: {}
 
+  yaml@2.6.0:
+    optional: true
+
   yargs-parser@21.1.1: {}
 
   yargs@17.7.2:
@@ -5244,6 +5264,10 @@ snapshots:
       yargs-parser: 21.1.1
 
   yocto-queue@0.1.0: {}
+
+  zod-openapi@3.3.0(zod@3.23.8):
+    dependencies:
+      zod: 3.23.8
 
   zod-to-ts@1.2.0(typescript@5.6.2)(zod@3.23.8):
     dependencies:

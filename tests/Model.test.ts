@@ -1,6 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
-import { Model } from "../src/Model";
+import { Model } from "../src/model";
 import { z } from "zod";
+import { createSchema, extendZodWithOpenApi } from "zod-openapi";
+
+extendZodWithOpenApi(z);
 
 describe("Model", () => {
   it("should create a model with a Zod schema", () => {
@@ -14,40 +17,6 @@ describe("Model", () => {
     expect(() => model.validate(invalidData)).toThrow();
   });
 
-  it("should infer schema from an example object", () => {
-    const exampleObject = { name: "Bob", age: 25 };
-    const model = new Model(exampleObject);
-
-    const validData = { name: "Bob", age: 25 };
-    expect(model.validate(validData)).toEqual(validData);
-
-    const invalidData = { name: "Bob", age: "twenty-five" };
-    expect(() => model.validate(invalidData)).toThrow();
-  });
-
-  it("should infer schema from a TypeScript type", () => {
-    class Person {
-      name = "Charlie";
-      age = 40;
-    }
-
-    const model = new Model(Person);
-
-    const validData = { name: "Charlie", age: 40 };
-    expect(model.validate(validData)).toEqual(validData);
-
-    const invalidData = { name: "Charlie", age: "forty" };
-    expect(() => model.validate(invalidData)).toThrow();
-  });
-
-  it("should dump data to JSON string", () => {
-    const schema = z.object({ name: z.string(), age: z.number() });
-    const model = new Model(schema);
-
-    const data = { name: "David", age: 35 };
-    expect(model.dumpJson(data)).toBe(JSON.stringify(data));
-  });
-
   it("should build a schema digest", () => {
     const schema = z.object({ name: z.string(), age: z.number() });
     const model = new Model(schema);
@@ -56,60 +25,100 @@ describe("Model", () => {
     expect(model.buildSchemaDigest()).toMatch(digestPattern);
   });
 
-  it("should handle nested objects when inferring schema", () => {
-    const exampleObject = {
-      user: {
-        name: "Emma",
-        details: {
-          age: 29,
-          active: true
-        }
-      }
-    };
-    const model = new Model(exampleObject);
+  it("should be compatible with python model digest", () => {
+    const schema = z
+      .object({
+        check: z.boolean(),
+        message: z.string(),
+        counter: z.number().int(),
+      })
+      .openapi({
+        description: "Plus random docstring",
+        title: "SuperImportantCheck",
+      });
+    // See https://github.com/fetchai/uAgents/blob/main/python/tests/test_model.py
+    const TARGET_DIGEST =
+      "model:21e34819ee8106722968c39fdafc104bab0866f1c73c71fd4d2475be285605e9";
 
-    const validData = {
-      user: {
-        name: "Emma",
-        details: {
-          age: 29,
-          active: true
-        }
-      }
-    };
-    expect(model.validate(validData)).toEqual(validData);
-
-    const invalidData = {
-      user: {
-        name: "Emma",
-        details: {
-          age: "twenty-nine",
-          active: true
-        }
-      }
-    };
-    expect(() => model.validate(invalidData)).toThrow();
+    const model = new Model(schema);
+    expect(model.buildSchemaDigest()).toEqual(TARGET_DIGEST);
   });
 
-  it("should handle arrays when inferring schema", () => {
-    const exampleObject = { tags: ["typescript", "zod"] };
-    const model = new Model(exampleObject);
+  it("nested models should be compatible with python model digest", () => {
+    const KeyValue = z
+      .object({
+        key: z.string(),
+        value: z.string(),
+      })
+      .openapi({ ref: "KeyValue" });
 
-    const validData = { tags: ["typescript", "zod"] };
-    expect(model.validate(validData)).toEqual(validData);
+    const UAgentResponseType = z
+      .enum([
+        "final",
+        "error",
+        "validation_error",
+        "select_from_options",
+        "final_options",
+      ])
+      .openapi({
+        title: "UAgentResponseType",
+        description: "An enumeration.",
+        ref: "UAgentResponseType",
+      });
 
-    const invalidData = { tags: "typescript" };
-    expect(() => model.validate(invalidData)).toThrow();
+    const UAgentResponse = z
+      .object({
+        version: z.enum(["v1"]).default("v1").openapi({ title: "Version" }),
+        type: UAgentResponseType.refine((val) => true).openapi({
+          title: "Type",
+        }),
+        request_id: z.string().optional().openapi({ title: "Request Id" }),
+        agent_address: z
+          .string()
+          .optional()
+          .openapi({ title: "Agent Address" }),
+        message: z.string().optional().openapi({ title: "Message" }),
+        options: z.array(KeyValue).optional().openapi({ title: "Options" }),
+        verbose_message: z
+          .string()
+          .optional()
+          .openapi({ title: "Verbose Message" }),
+        verbose_options: z
+          .array(KeyValue)
+          .optional()
+          .openapi({ title: "Verbose Options" }),
+      })
+      .openapi({
+        title: "UAgentResponse",
+      });
+
+    const NESTED_TARGET_DIGEST =
+      "model:cf0d1367c5f9ed8a269de559b2fbca4b653693bb8315d47eda146946a168200e";
+
+    // Check that all refs are added to components
+
+    const { schema, components } = createSchema(UAgentResponse);
+    console.log("schema: ", schema);
+    console.log("components: ", components);
+    expect(Object.keys(components || {})).toEqual(
+      expect.arrayContaining(["KeyValue", "UAgentResponseType"])
+    );
+
+    // verify digest matches
+    const model = new Model(UAgentResponse);
+    expect(model.buildSchemaDigest()).toEqual(NESTED_TARGET_DIGEST);
   });
 
   it("should throw an error for invalid constructor argument", () => {
-    expect(() => new Model(123 as any)).toThrow("Invalid input. Provide a Zod schema, example object, or TypeScript type.");
+    expect(() => new Model(123 as any)).toThrow(
+      "Invalid input. Provide a Zod schema."
+    );
   });
 
   it("should correctly validate optional fields", () => {
     const schema = z.object({
       name: z.string(),
-      age: z.number().optional()
+      age: z.number().optional(),
     });
     const model = new Model(schema);
 
@@ -124,21 +133,21 @@ describe("Model", () => {
   });
 
   it("should validate complex objects with multiple levels of nesting", () => {
-    const exampleObject = {
-      user: {
-        profile: {
-          name: "John Doe",
-          settings: {
-            theme: "dark",
-            notifications: {
-              email: true,
-              sms: false
-            }
-          }
-        }
-      }
-    };
-    const model = new Model(exampleObject);
+    const schema = z.object({
+      user: z.object({
+        profile: z.object({
+          name: z.string(),
+          settings: z.object({
+            theme: z.string(),
+            notifications: z.object({
+              email: z.boolean(),
+              sms: z.boolean(),
+            }),
+          }),
+        }),
+      }),
+    });
+    const model = new Model(schema);
 
     const validData = {
       user: {
@@ -148,11 +157,11 @@ describe("Model", () => {
             theme: "dark",
             notifications: {
               email: true,
-              sms: false
-            }
-          }
-        }
-      }
+              sms: false,
+            },
+          },
+        },
+      },
     };
     expect(model.validate(validData)).toEqual(validData);
 
@@ -164,16 +173,12 @@ describe("Model", () => {
             theme: "dark",
             notifications: {
               email: "yes",
-              sms: false
-            }
-          }
-        }
-      }
+              sms: false,
+            },
+          },
+        },
+      },
     };
     expect(() => model.validate(invalidData)).toThrow();
-  });
-
-  it("should throw an error if Model is created without arguments", () => {
-    expect(() => new Model()).toThrow("Invalid input. Provide a Zod schema, example object, or TypeScript type.");
   });
 });
