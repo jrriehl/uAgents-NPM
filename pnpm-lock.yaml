@@ -60,6 +60,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.27.8
         version: 2.27.9
+      '@types/jest':
+        specifier: ^29.5.14
+        version: 29.5.14
       babel-jest:
         specifier: ^29.7.0
         version: 29.7.0(@babel/core@7.25.8)
@@ -1188,6 +1191,9 @@ packages:
 
   '@types/istanbul-reports@3.0.4':
     resolution: {integrity: sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ==}
+
+  '@types/jest@29.5.14':
+    resolution: {integrity: sha512-ZN+4sdnLUbo8EVvVc2ao0GFW6oVrQRPn4K2lglySj7APvSrgzxHiNNK99us4WDMi57xxA2yggblIAMNhXOotLQ==}
 
   '@types/long@4.0.2':
     resolution: {integrity: sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA==}
@@ -3764,6 +3770,10 @@ snapshots:
 
   '@fetchai/uagents@file:(typescript@5.6.2)':
     dependencies:
+      '@cosmjs/amino': 0.32.4
+      '@cosmjs/cosmwasm-stargate': 0.32.4
+      '@cosmjs/proto-signing': 0.32.4
+      '@cosmjs/stargate': 0.32.4
       '@jest/globals': 29.7.0
       '@types/elliptic': 6.4.18
       '@types/node': 22.7.5
@@ -3773,8 +3783,11 @@ snapshots:
       zod: 3.23.8
       zod-to-ts: 1.2.0(typescript@5.6.2)(zod@3.23.8)
     transitivePeerDependencies:
+      - bufferutil
+      - debug
       - supports-color
       - typescript
+      - utf-8-validate
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -4132,6 +4145,11 @@ snapshots:
   '@types/istanbul-reports@3.0.4':
     dependencies:
       '@types/istanbul-lib-report': 3.0.3
+
+  '@types/jest@29.5.14':
+    dependencies:
+      expect: 29.7.0
+      pretty-format: 29.7.0
 
   '@types/long@4.0.2': {}
 
