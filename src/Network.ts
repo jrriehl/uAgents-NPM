@@ -231,6 +231,15 @@ export class AlmanacContract {
   }
 
   /**
+   * Get the contract address.
+   * 
+   * @returns The contract address
+   */
+  getAddress(): string {
+    return this.address;
+  }
+
+  /**
    * Check if an agent is registered in the Almanac contract.
    * 
    * @param address - The agent's address
