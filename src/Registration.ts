@@ -15,6 +15,9 @@ import { log, getLogger, LogLevel } from "./utils";
 
 const logger = getLogger(LogLevel.INFO, "AgentRegistration");
 
+/**
+ * Generate a backoff time starting from 0.128 seconds and limited to ~131 seconds
+ */
 function generateBackoffTime(retry: number): number {
   return Math.min(2 ** (retry + 6), 131072) / 1000;
 }
@@ -206,6 +209,10 @@ class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
     this.testnet = testnet;
   }
 
+  /**
+   * Check the version of the deployed Almanac contract and log a warning
+   * if it is different from the supported version.
+   */
   private async checkContractVersion() {
     const deployedVersion = await this.almanacContract.getContractVersion();
     if (deployedVersion !== ALMANAC_CONTRACT_VERSION) {
@@ -216,6 +223,10 @@ class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
     }
   }
 
+  /**
+   * Register the agent on the Almanac contract if registration is about to expire or
+   * the registration data has changed.
+   */
   async register(
     agentAddress: string,
     protocols: string[],
@@ -267,7 +278,6 @@ class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
     }
   }
 }
-
 
 class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
   private almanacApi: string;
