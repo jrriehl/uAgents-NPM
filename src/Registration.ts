@@ -45,7 +45,7 @@ abstract class BaseVerifiableModel implements VerifiableModel {
     const digest = this._buildDigest();
     this.signature = identity.signDigest(digest);
   }
-  
+
     /**
    * Verify the signature using the provided Identity.
    */
@@ -268,6 +268,123 @@ class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
   }
 }
 
+
+class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
+  private almanacApi: string;
+  private attestations: AgentRegistrationAttestation[];
+  private maxRetries: number;
+
+  constructor(almanacApi: string = ALMANAC_API_URL) {
+    super();
+    this.almanacApi = almanacApi;
+    this.attestations = [];
+    this.maxRetries = ALMANAC_API_MAX_RETRIES;
+  }
+
+  addAgent(agentInfo: AgentInfo, identity: Identity): void {
+    const attestation = new AgentRegistrationAttestation(
+      agentInfo.agent_address,
+      agentInfo.protocols,
+      agentInfo.endpoints,
+    );
+    attestation.sign(identity);
+    this.attestations.push(attestation);
+  }
+
+  async register(): Promise<void> {
+    if (this.attestations.length === 0) {
+      log("No agents to register in batch.", logger);
+      return;
+    }
+
+    const batch = new AgentRegistrationAttestationBatch(this.attestations);
+
+    const success = await almanacApiPost(`${this.almanacApi}/agents/batch`, batch);
+    if (success) {
+      log("Batch registration on Almanac API successful", logger);
+    } else {
+      log("Batch registration on Almanac API failed", logger);
+    }
+  }
+}
+
+class BatchLedgerRegistrationPolicy extends BatchRegistrationPolicy {
+  private ledger: any;
+  private wallet: any;
+  private almanacContract: AlmanacContract;
+  private testnet: boolean;
+  private records: any[];
+  private identities: Record<string, Identity>;
+
+  constructor(
+    ledger: any,
+    wallet: any,
+    almanacContract: AlmanacContract,
+    testnet: boolean
+  ) {
+    super();
+    this.ledger = ledger;
+    this.wallet = wallet;
+    this.almanacContract = almanacContract;
+    this.testnet = testnet;
+    this.records = [];
+    this.identities = {};
+  }
+
+  addAgent(agentInfo: AgentInfo, identity: Identity): void {
+    const record = {
+      agentAddress: agentInfo.agent_address,
+      protocols: agentInfo.protocols,
+      endpoints: agentInfo.endpoints,
+      contractAddress: this.almanacContract.getAddress(),
+      senderAddress: this.wallet.address(),
+    };
+    this.records.push(record);
+    this.identities[agentInfo.agent_address] = identity;
+  }
+
+  private async getBalance(): Promise<number> {
+    return await this.ledger.queryBankBalance(this.wallet.address());
+  }
+
+  async register(): Promise<void> {
+    if (this.records.length === 0) {
+      log("No agents to register in batch.", logger);
+      return;
+    }
+
+    const balance = await this.getBalance();
+    if (balance < parseInt(REGISTRATION_FEE) * this.records.length) {
+      log(
+        `Insufficient funds to register ${this.records.length} agents.`,
+        logger
+      );
+      if (this.testnet) {
+        await addTestnetFunds(this.wallet.address());
+        log("Testnet funds added.", logger);
+      } else {
+        throw new InsufficientFundsError("Not enough funds for batch registration.");
+      }
+    }
+
+    for (const record of this.records) {
+      const identity = this.identities[record.agentAddress];
+      if (!identity) {
+        throw new Error(`Identity for agentAddress ${record.agentAddress} is not defined.`);
+      }
+      const timestamp = Math.floor(Date.now() / 1000) - ALMANAC_REGISTRATION_WAIT;
+      record.signature = identity.signRegistration(
+        record.contractAddress,
+        timestamp,
+        record.senderAddress
+      );
+    }
+
+    await this.almanacContract.registerBatch(this.ledger, this.wallet, this.records);
+    log("Batch registration on Almanac contract complete.", logger);
+  }
+}
+
 class DefaultRegistrationPolicy extends AgentRegistrationPolicy {
   private apiPolicy: AlmanacApiRegistrationPolicy;
   private ledgerPolicy?: LedgerBasedRegistrationPolicy;
@@ -310,6 +427,53 @@ class DefaultRegistrationPolicy extends AgentRegistrationPolicy {
         await this.ledgerPolicy.register(agentAddress, protocols, endpoints, metadata);
       } catch (error) {
         log(`Ledger registration failed: ${error}`, logger);
+      }
+    }
+  }
+}
+
+class DefaultBatchRegistrationPolicy extends BatchRegistrationPolicy {
+  private apiPolicy: BatchAlmanacApiRegistrationPolicy;
+  private ledgerPolicy?: BatchLedgerRegistrationPolicy;
+
+  constructor(
+    ledger?: any,
+    wallet?: any,
+    almanacContract?: AlmanacContract,
+    testnet: boolean = true
+  ) {
+    super();
+    this.apiPolicy = new BatchAlmanacApiRegistrationPolicy();
+
+    if (ledger && wallet && almanacContract) {
+      this.ledgerPolicy = new BatchLedgerRegistrationPolicy(
+        ledger,
+        wallet,
+        almanacContract,
+        testnet
+      );
+    }
+  }
+
+  addAgent(agentInfo: AgentInfo, identity: Identity): void {
+    this.apiPolicy.addAgent(agentInfo, identity);
+    if (this.ledgerPolicy) {
+      this.ledgerPolicy.addAgent(agentInfo, identity);
+    }
+  }
+
+  async register(): Promise<void> {
+    try {
+      await this.apiPolicy.register();
+    } catch (error) {
+      log(`API batch registration failed: ${error}`, logger);
+    }
+
+    if (this.ledgerPolicy) {
+      try {
+        await this.ledgerPolicy.register();
+      } catch (error) {
+        log(`Ledger batch registration failed: ${error}`, logger);
       }
     }
   }
