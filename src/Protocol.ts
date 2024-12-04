@@ -1,6 +1,6 @@
-import { z, ZodSchema } from "zod";
+import { z } from "zod";
 import crypto from "crypto";
-import { extendZodWithOpenApi, createSchema } from "zod-openapi";
+import { extendZodWithOpenApi } from "zod-openapi";
 import { Model } from "./model";
 import {
   IntervalCallback,
@@ -10,6 +10,24 @@ import {
 extendZodWithOpenApi(z);
 
 const OPENAPI_VERSION = "3.0.2";
+
+interface ProtocolManifest {
+  version: string;
+  metadata: {
+    name?: string;
+    version?: string;
+    digest?: string;
+  };
+  models: Array<{
+    digest: string;
+    schema: any;
+  }>;
+  interactions: Array<{
+    type: string;
+    request: string;
+    responses: string[];
+  }>;
+}
 
 export class Protocol {
   /**
@@ -269,7 +287,7 @@ export class Protocol {
       this._replies[modelDigest] = {};
       replySet.forEach((reply) => {
         const replyDigest = Model.buildSchemaDigest(reply);
-        this._replies[modelDigest][replyDigest] = reply;
+        this._models[replyDigest] = reply;
       });
     }
   }
@@ -282,12 +300,12 @@ export class Protocol {
      * Returns:
      *     Dict[str, Any]: The protocol's manifest.
      */
-    const metadata = {
+    const metadata: { name: string; version: string; digest?: string } = {
       name: this._name,
       version: this._version,
     };
 
-    const manifest = {
+    const manifest: ProtocolManifest = {
       version: "1.0",
       metadata: {},
       models: [],
@@ -309,7 +327,7 @@ export class Protocol {
     Object.entries(allModels).forEach(([digest, model]) => {
       manifest.models.push({
         digest,
-        schema: model.schema(),
+        schema: model.dump({}),
       });
     });
 
@@ -321,8 +339,9 @@ export class Protocol {
       });
     });
 
-    const encoded = JSON.stringify(manifest, null, 0);
-    metadata["digest"] = `proto:${crypto.createHash("sha256").update(encoded).digest("hex")}`;
+    const cleanedManifest = { ...manifest, metadata: {} };
+    const encoded = JSON.stringify(cleanedManifest, null, 0);
+    metadata["digest"] = Protocol.computeDigest(manifest);
 
     const finalManifest = { ...manifest, metadata };
 
