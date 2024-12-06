@@ -17,7 +17,6 @@ import {
 } from './Config';
 import { Resolver } from './Resolver';
 import { Protocol } from './Protocol';
-import axios from 'axios';
 import { z } from 'zod';
 import { Identity } from './crypto';
 
@@ -271,14 +270,18 @@ export class InternalContext extends Context {
     const almanacApiUrl = (this._resolver as any)._almanacApiResolver?._almanacApiUrl || ALMANAC_API_URL;
 
     try {
-      const response = await axios.post(
-        `${almanacApiUrl}/search`,
-        { text: protocolDigest.slice(6) },
-        { timeout: DEFAULT_ENVELOPE_TIMEOUT_SECONDS * 1000 }
-      );
+      const response = await fetch(`${almanacApiUrl}/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: protocolDigest.slice(6) }),
+        signal: AbortSignal.timeout(DEFAULT_ENVELOPE_TIMEOUT_SECONDS * 1000),
+      });
 
-      if (response.status === 200) {
-        const agents = response.data
+      if (response.ok) {
+        const data = await response.json();
+        const agents = data
           .filter((agent: any) => agent.status === 'active')
           .map((agent: any) => agent.address);
         return agents.slice(0, limit);
