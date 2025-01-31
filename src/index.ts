@@ -3,6 +3,7 @@ export * from "./Agent";
 export * from "./ASGI";
 export * from "./Communication";
 export * from "./Config";
+export * from "./crypto";
 export * from "./Context";
 export * from "./Dispatch";
 export * from "./Envelope";

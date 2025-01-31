@@ -4,6 +4,7 @@ import { bech32 } from 'bech32';
 import { sha256 } from 'js-sha256';
 import { USER_PREFIX } from './Config';
 
+const MAX_BECH32_LENGTH = 2000;
 const SHA_LENGTH = 256;
 const ec = new EC('secp256k1');
 
@@ -40,14 +41,14 @@ function convertBits(data: Buffer, fromBits: number, toBits: number, pad: boolea
 }
 
 function decodeBech32(value: string): [string, Buffer] {
-  const decoded = bech32.decode(value);
+  const decoded = bech32.decode(value, MAX_BECH32_LENGTH);
   const data = Buffer.from(bech32.fromWords(decoded.words));
   return [decoded.prefix, data];
 }
 
 function encodeBech32(prefix: string, value: Buffer): string {
   const words = convertBits(value, 8, 5, true);
-  return bech32.encode(prefix, words);
+  return bech32.encode(prefix, words, MAX_BECH32_LENGTH);
 }
 
 function generateUserAddress(): string {
@@ -239,8 +240,7 @@ class Identity {
   /**
    * Verify that the signature is correct for the provided signer address and digest.
    */
-  static verifyDigest(address: string, digest: Buffer, signature: string): boolean {
-    try {
+  static verifyDigest(address: string, digest: Buffer, signature: string): void {
       const [pkPrefix, pkData] = decodeBech32(address);
       const [sigPrefix, sigData] = decodeBech32(signature);
 
@@ -252,11 +252,18 @@ class Identity {
         throw new Error('Unable to decode signature');
       }
 
+      if (sigData.length !== 64) {
+        throw new Error('Invalid signature length');
+      }
+
+      // extract parameters
+      const r = sigData.subarray(0, 32);
+      const s = sigData.subarray(32);
+
       const key = ec.keyFromPublic(pkData);
-      return key.verify(digest, sigData);
-    } catch (error) {
-      return false;
-    }
+      if (!key.verify(digest, {r, s})) {
+        throw new Error('Unable to verify signature');
+      }
   }
 
   private getCanonicalSignature(signature: EC.Signature): Buffer {

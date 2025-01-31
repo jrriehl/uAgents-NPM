@@ -28,7 +28,7 @@ interface VerifiableModel {
   timestamp?: number;
 
   sign(identity: Identity): void;
-  verify(identity: Identity): boolean;
+  verify(identity: Identity): void;
 }
 
 abstract class BaseVerifiableModel implements VerifiableModel {
@@ -52,11 +52,11 @@ abstract class BaseVerifiableModel implements VerifiableModel {
     /**
    * Verify the signature using the provided Identity.
    */
-    verify(identity: Identity): boolean {
+    verify(identity: Identity): void {
       if (!this.signature) {
-        return false;
+        throw new Error('signature is missing');
       }
-      return Identity.verifyDigest(this.agentAddress, this._buildDigest(), this.signature);
+      Identity.verifyDigest(this.agentAddress, this._buildDigest(), this.signature);
     }
 
   /**

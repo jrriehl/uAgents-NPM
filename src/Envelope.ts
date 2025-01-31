@@ -93,7 +93,7 @@ export class Envelope {
    */
   sign(identity: Identity): void {
     try {
-      this.signature = identity.signB64(this._digest());
+      this.signature = identity.signDigest(this._digest());
     } catch (err) {
       throw new Error(`Failed to sign envelope: ${err}`);
     }
@@ -105,11 +105,34 @@ export class Envelope {
    * @returns True if the signature is valid.
    * @throws Error if the signature is missing.
    */
-  verify(): boolean {
+  verify(): void {
     if (!this.signature) {
       throw new Error('Envelope signature is missing');
     }
-    return Identity.verifyDigest(this.sender, this._digest(), this.signature);
+
+    console.log('Digest', this._digest().toString('hex'));
+
+    Identity.verifyDigest(this.sender, this._digest(), this.signature);
+  }
+
+  /**
+   * Convert the envelope to JSON for sending
+   */
+  toJSON(): string {
+    const obj = {
+      version: this.version,
+      sender: this.sender,
+      target: this.target,
+      session: this.session,
+      schema_digest: this.schemaDigest ?? null,
+      protocol_digest: this.protocolDigest ?? null,
+      payload: this.payload ?? null,
+      expires: this.expires ?? null,
+      nonce: this.nonce ?? null,
+      signature: this.signature ?? null,
+    }
+
+    return JSON.stringify(obj);
   }
 
   /**
@@ -155,15 +178,27 @@ export class Envelope {
       sender: z.string(),
       target: z.string(),
       session: z.string(),
-      schemaDigest: z.string(),
-      protocolDigest: z.string().optional(),
-      payload: z.string().optional(),
-      expires: z.number().optional(),
-      nonce: z.number().optional(),
-      signature: z.string().optional(),
+      schema_digest: z.string(),
+      protocol_digest: z.string().nullish(),
+      payload: z.string().nullish(),
+      expires: z.number().nullish(),
+      nonce: z.number().nullish(),
+      signature: z.string().nullish(),
     });
     const parsedData = EnvelopeSchema.parse(data);
-    return new Envelope(parsedData);
+
+    return new Envelope({
+      version: parsedData.version,
+      sender: parsedData.sender,
+      target: parsedData.target,
+      session: parsedData.session,
+      schemaDigest: parsedData.schema_digest,
+      protocolDigest: parsedData.protocol_digest ?? undefined,
+      payload: parsedData.payload ?? undefined,
+      expires: parsedData.expires ?? undefined,
+      nonce: parsedData.nonce ?? undefined,
+      signature: parsedData.signature ?? undefined,
+    });
   }
 }
 

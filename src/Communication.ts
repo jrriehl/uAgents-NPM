@@ -97,7 +97,8 @@ async function sendExchangeEnvelope(
           if (env.signature) {
             let verified = false;
             try {
-              verified = env.verify();
+              env.verify();
+              verified = true;
             } catch (ex) {
               errors.push(`Received response envelope that failed verification: ${ex}`);
             }
