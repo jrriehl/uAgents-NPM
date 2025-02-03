@@ -225,8 +225,47 @@ declare class Model<T extends Record<string, any>> {
     static buildSchemaDigest(schemaOrModel: ZodSchema | Model<any>): string;
 }
 
+/**
+ * Parse an agent identifier string into prefix, name, and address.
+ *
+ * @param {string} identifier - The identifier string to be parsed.
+ * @returns {[string, string, string]} A tuple containing the prefix, name, and address as strings.
+ */
+declare function parseIdentifier(identifier: string): [string, string, string];
 declare abstract class Resolver {
     abstract resolve(destination: string): Promise<[string | null, string[]]>;
+}
+declare class AlmanacContractResolver extends Resolver {
+    private _maxEndpoints;
+    constructor(maxEndpoints?: number);
+    resolve(destination: string): Promise<[string | null, string[]]>;
+}
+declare class AlmanacApiResolver extends Resolver {
+    private _maxEndpoints;
+    private _almanacApiUrl;
+    private _almanacContractResolver;
+    constructor(maxEndpoints?: number, almanacApiUrl?: string);
+    private _apiResolve;
+    resolve(destination: string): Promise<[string | null, string[]]>;
+}
+declare class NameServiceResolver extends Resolver {
+    private _maxEndpoints;
+    private _almanacApiResolver;
+    constructor(maxEndpoints?: number);
+    resolve(destination: string): Promise<[string | null, string[]]>;
+}
+declare class GlobalResolver extends Resolver {
+    private _maxEndpoints;
+    private _almanacApiResolver;
+    private _nameServiceResolver;
+    constructor(maxEndpoints?: number, almanacApiUrl?: string);
+    resolve(destination: string): Promise<[string | null, string[]]>;
+}
+declare class RulesBasedResolver extends Resolver {
+    private _rules;
+    private _maxEndpoints;
+    constructor(rules: Record<string, string[]>, maxEndpoints?: number);
+    resolve(destination: string): Promise<[string | null, string[]]>;
 }
 
 declare enum LogLevel {
@@ -679,4 +718,4 @@ declare const query = "tmp";
 
 declare const Wallet = "tmp";
 
-export { AGENTVERSE_URL, AGENT_ADDRESS_LENGTH, AGENT_PREFIX, ALMANAC_API_MAX_RETRIES, ALMANAC_API_TIMEOUT_SECONDS, ALMANAC_API_URL, ALMANAC_CONTRACT_VERSION, ALMANAC_REGISTRATION_WAIT, ASGI, AVERAGE_BLOCK_INTERVAL, Agent, type AgentRepresentation, Context, type ContextType, DEFAULT_ENVELOPE_TIMEOUT_SECONDS, DEFAULT_MAX_ENDPOINTS, DEFAULT_SEARCH_LIMIT, type Dispenser, Envelope, EnvelopeHistory, EnvelopeHistoryEntry, ErrorMessage, type ErrorMessageType, ExternalContext, Identity, InternalContext, KeyValueStore, LEDGER_PREFIX, MAILBOX_POLL_INTERVAL_SECONDS, MAINNET_CONTRACT_ALMANAC, MAINNET_CONTRACT_NAME_SERVICE, MAINNET_PREFIX, MAINNET_RPC, Model, Protocol, REGISTRATION_DENOM, REGISTRATION_FEE, REGISTRATION_RETRY_INTERVAL_SECONDS, REGISTRATION_UPDATE_INTERVAL_SECONDS, RESPONSE_TIME_HINT_SECONDS, TESTNET_CONTRACT_ALMANAC, TESTNET_CONTRACT_NAME_SERVICE, TESTNET_FAUCET, TESTNET_PREFIX, TESTNET_RPC, USER_PREFIX, WALLET_MESSAGING_POLL_INTERVAL_SECONDS, Wallet, deriveKeyFromSeed, dispatcher, encloseResponse, encloseResponseRaw, encodeLengthPrefixed, generateUserAddress, isUserAddress, mailbox, parseAgentverseConfig, parseEndpointConfig, query, sendMessage, sendSyncMessage };
+export { AGENTVERSE_URL, AGENT_ADDRESS_LENGTH, AGENT_PREFIX, ALMANAC_API_MAX_RETRIES, ALMANAC_API_TIMEOUT_SECONDS, ALMANAC_API_URL, ALMANAC_CONTRACT_VERSION, ALMANAC_REGISTRATION_WAIT, ASGI, AVERAGE_BLOCK_INTERVAL, Agent, type AgentRepresentation, AlmanacApiResolver, AlmanacContractResolver, Context, type ContextType, DEFAULT_ENVELOPE_TIMEOUT_SECONDS, DEFAULT_MAX_ENDPOINTS, DEFAULT_SEARCH_LIMIT, type Dispenser, Envelope, EnvelopeHistory, EnvelopeHistoryEntry, ErrorMessage, type ErrorMessageType, ExternalContext, GlobalResolver, Identity, InternalContext, KeyValueStore, LEDGER_PREFIX, MAILBOX_POLL_INTERVAL_SECONDS, MAINNET_CONTRACT_ALMANAC, MAINNET_CONTRACT_NAME_SERVICE, MAINNET_PREFIX, MAINNET_RPC, Model, NameServiceResolver, Protocol, REGISTRATION_DENOM, REGISTRATION_FEE, REGISTRATION_RETRY_INTERVAL_SECONDS, REGISTRATION_UPDATE_INTERVAL_SECONDS, RESPONSE_TIME_HINT_SECONDS, Resolver, RulesBasedResolver, TESTNET_CONTRACT_ALMANAC, TESTNET_CONTRACT_NAME_SERVICE, TESTNET_FAUCET, TESTNET_PREFIX, TESTNET_RPC, USER_PREFIX, WALLET_MESSAGING_POLL_INTERVAL_SECONDS, Wallet, deriveKeyFromSeed, dispatcher, encloseResponse, encloseResponseRaw, encodeLengthPrefixed, generateUserAddress, isUserAddress, mailbox, parseAgentverseConfig, parseEndpointConfig, parseIdentifier, query, sendMessage, sendSyncMessage };

@@ -12,5 +12,6 @@ export * from "./model";
 export * from "./Protocol";
 export * from "./Query";
 export * from "./Registration";
+export * from "./Resolver";
 export * from "./Storage";
 export * from "./Wallet";
