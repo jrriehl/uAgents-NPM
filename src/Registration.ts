@@ -12,6 +12,7 @@ import { Identity } from "./crypto";
 import { AgentEndpoint, AgentInfo } from "./types";
 import { AlmanacContract, addTestnetFunds, InsufficientFundsError } from "./Network";
 import { log, getLogger, LogLevel } from "./utils";
+import { parseIdentifier } from "./Resolver";
 
 const logger = getLogger(LogLevel.INFO, "AgentRegistration");
 
@@ -22,8 +23,15 @@ function generateBackoffTime(retry: number): number {
   return Math.min(2 ** (retry + 6), 131072) / 1000;
 }
 
+function JSONstringifyOrder(obj: any)
+{
+    const allKeys: Set<string> = new Set();
+    JSON.stringify(obj, (key, value) => (allKeys.add(key), value));
+    return JSON.stringify(obj, Array.from(allKeys).sort());
+}
+
 interface VerifiableModel {
-  agentAddress: string;
+  agent_identifier: string;
   signature?: string;
   timestamp?: number;
 
@@ -32,12 +40,12 @@ interface VerifiableModel {
 }
 
 abstract class BaseVerifiableModel implements VerifiableModel {
-  agentAddress: string;
+  agent_identifier: string;
   signature?: string;
   timestamp?: number;
 
-  constructor(agentAddress: string) {
-    this.agentAddress = agentAddress;
+  constructor(agentIdentifier: string) {
+    this.agent_identifier = agentIdentifier;
   }
 
   /**
@@ -52,18 +60,18 @@ abstract class BaseVerifiableModel implements VerifiableModel {
     /**
    * Verify the signature using the provided Identity.
    */
-    verify(identity: Identity): void {
+    verify(): void {
       if (!this.signature) {
         throw new Error('signature is missing');
       }
-      Identity.verifyDigest(this.agentAddress, this._buildDigest(), this.signature);
+      Identity.verifyDigest(this.agent_identifier, this._buildDigest(), this.signature);
     }
 
   /**
    * Build the cryptographic digest of the model for signing/verification.
    */
   private _buildDigest(): Buffer {
-    const jsonRepresentation = JSON.stringify({
+    const jsonRepresentation = JSONstringifyOrder({
       ...this,
       signature: undefined,
     });
@@ -77,15 +85,15 @@ abstract class BaseVerifiableModel implements VerifiableModel {
 class AgentRegistrationAttestation extends BaseVerifiableModel {
   protocols: string[];
   endpoints: AgentEndpoint[];
-  metadata?: Record<string, string>;
+  metadata: Record<string, string> | null;
 
   constructor(
-    agentAddress: string,
+    agentIdentifier: string,
     protocols: string[],
     endpoints: AgentEndpoint[],
-    metadata?: Record<string, string>
+    metadata: Record<string, string> | null = null
   ) {
-    super(agentAddress);
+    super(agentIdentifier);
     this.protocols = protocols;
     this.endpoints = endpoints;
     this.metadata = metadata;
@@ -125,7 +133,7 @@ async function almanacApiPost(
       if (response.ok) {
         return true;
       } else {
-        log(`API responded with status ${response.status}`, logger);
+        log(`API responded with ${response.status}: ${await response.text()}`, logger);
       }
     } catch (error) {
       if (retry === retries - 1) {
@@ -140,10 +148,10 @@ async function almanacApiPost(
 
 abstract class AgentRegistrationPolicy {
   abstract register(
-    agentAddress: string,
+    agentIdentifier: string,
     protocols: string[],
     endpoints: AgentEndpoint[],
-    metadata?: Record<string, string>
+    metadata: Record<string, string> | null
   ): Promise<void>;
 }
 
@@ -152,7 +160,7 @@ abstract class BatchRegistrationPolicy {
   abstract register(): Promise<void>;
 }
 
-class AlmanacApiRegistrationPolicy extends AgentRegistrationPolicy {
+export class AlmanacApiRegistrationPolicy extends AgentRegistrationPolicy {
   private identity: Identity;
   private almanacApi: string;
   private maxRetries: number;
@@ -165,20 +173,20 @@ class AlmanacApiRegistrationPolicy extends AgentRegistrationPolicy {
   }
 
   async register(
-    agentAddress: string,
+    agentIdentifier: string,
     protocols: string[],
     endpoints: AgentEndpoint[],
-    metadata?: Record<string, string>
+    metadata: Record<string, string> | null = null
   ): Promise<void> {
     const attestation = new AgentRegistrationAttestation(
-      agentAddress,
+      agentIdentifier,
       protocols,
       endpoints,
       metadata
     );
     attestation.sign(this.identity);
 
-    const success = await almanacApiPost(`${this.almanacApi}/agents`, attestation);
+    const success = await almanacApiPost(`${this.almanacApi}/agents`, attestation, this.maxRetries);
     if (success) {
       log("Registration on Almanac API successful", logger);
     } else {
@@ -187,7 +195,7 @@ class AlmanacApiRegistrationPolicy extends AgentRegistrationPolicy {
   }
 }
 
-class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
+export class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
   private identity: Identity;
   private ledger: any;
   private wallet: any;
@@ -228,13 +236,14 @@ class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
    * the registration data has changed.
    */
   async register(
-    agentAddress: string,
+    agentIdentifier: string,
     protocols: string[],
     endpoints: AgentEndpoint[],
-    metadata?: Record<string, string>
+    metadata: Record<string, string> | null = null
   ): Promise<void> {
     await this.checkContractVersion();
 
+    const agentAddress = parseIdentifier(agentIdentifier)[2];
     const isRegistered = await this.almanacContract.isRegistered(agentAddress);
     const expiry = await this.almanacContract.getExpiry(agentAddress);
     const currentEndpoints = await this.almanacContract.getEndpoints(agentAddress);
@@ -279,7 +288,7 @@ class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
   }
 }
 
-class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
+export class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
   private almanacApi: string;
   private attestations: AgentRegistrationAttestation[];
   private maxRetries: number;
@@ -293,9 +302,10 @@ class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
 
   addAgent(agentInfo: AgentInfo, identity: Identity): void {
     const attestation = new AgentRegistrationAttestation(
-      agentInfo.agent_address,
+      `${agentInfo.prefix}://${agentInfo.agent_address}`,
       agentInfo.protocols,
       agentInfo.endpoints,
+      agentInfo.metadata,
     );
     attestation.sign(identity);
     this.attestations.push(attestation);
@@ -309,7 +319,7 @@ class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
 
     const batch = new AgentRegistrationAttestationBatch(this.attestations);
 
-    const success = await almanacApiPost(`${this.almanacApi}/agents/batch`, batch);
+    const success = await almanacApiPost(`${this.almanacApi}/agents/batch`, batch, this.maxRetries);
     if (success) {
       log("Batch registration on Almanac API successful", logger);
     } else {
@@ -318,7 +328,7 @@ class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
   }
 }
 
-class BatchLedgerRegistrationPolicy extends BatchRegistrationPolicy {
+export class BatchLedgerRegistrationPolicy extends BatchRegistrationPolicy {
   private ledger: any;
   private wallet: any;
   private almanacContract: AlmanacContract;
@@ -395,7 +405,7 @@ class BatchLedgerRegistrationPolicy extends BatchRegistrationPolicy {
   }
 }
 
-class DefaultRegistrationPolicy extends AgentRegistrationPolicy {
+export class DefaultRegistrationPolicy extends AgentRegistrationPolicy {
   private apiPolicy: AlmanacApiRegistrationPolicy;
   private ledgerPolicy?: LedgerBasedRegistrationPolicy;
 
@@ -424,7 +434,7 @@ class DefaultRegistrationPolicy extends AgentRegistrationPolicy {
     agentAddress: string,
     protocols: string[],
     endpoints: AgentEndpoint[],
-    metadata?: Record<string, string>
+    metadata: Record<string, string> | null = null
   ): Promise<void> {
     try {
       await this.apiPolicy.register(agentAddress, protocols, endpoints, metadata);
@@ -442,7 +452,7 @@ class DefaultRegistrationPolicy extends AgentRegistrationPolicy {
   }
 }
 
-class DefaultBatchRegistrationPolicy extends BatchRegistrationPolicy {
+export class DefaultBatchRegistrationPolicy extends BatchRegistrationPolicy {
   private apiPolicy: BatchAlmanacApiRegistrationPolicy;
   private ledgerPolicy?: BatchLedgerRegistrationPolicy;
 

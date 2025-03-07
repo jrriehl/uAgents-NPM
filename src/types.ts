@@ -21,10 +21,13 @@ export type RestMethod = "GET" | "POST";
 export type RestHandlerMap = { [key: string]: RestHandler }; // where key is in the format of "GET /path" or "POST /path"
 
 export type AgentEndpoint = { url: string; weight: number };
+export type AddressPrefix = "agent" | "test-agent";
 export type AgentInfo = {
   agent_address: string;
+  prefix: AddressPrefix;
   endpoints: AgentEndpoint[];
   protocols: string[];
+  metadata: Record<string, string> | null;
 };
 export type RestHandlerDetails = {
   method: RestMethod;

@@ -10,36 +10,6 @@ const ec = new EC('secp256k1');
 
 type EncodableValue = string | number | Buffer;
 
-function convertBits(data: Buffer, fromBits: number, toBits: number, pad: boolean = true): number[] {
-  let acc = 0;
-  let bits = 0;
-  const ret: number[] = [];
-  const maxv = (1 << toBits) - 1;
-  const maxAcc = (1 << (fromBits + toBits - 1)) - 1;
-
-  for (const value of data) {
-    if (value < 0 || (value >> fromBits) !== 0) {
-      throw new Error('Invalid value');
-    }
-    acc = ((acc << fromBits) | value) & maxAcc;
-    bits += fromBits;
-    while (bits >= toBits) {
-      bits -= toBits;
-      ret.push((acc >> bits) & maxv);
-    }
-  }
-
-  if (pad) {
-    if (bits > 0) {
-      ret.push((acc << (toBits - bits)) & maxv);
-    }
-  } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) {
-    throw new Error('Invalid padding');
-  }
-
-  return ret;
-}
-
 function decodeBech32(value: string): [string, Buffer] {
   const decoded = bech32.decode(value, MAX_BECH32_LENGTH);
   const data = Buffer.from(bech32.fromWords(decoded.words));
@@ -47,7 +17,7 @@ function decodeBech32(value: string): [string, Buffer] {
 }
 
 function encodeBech32(prefix: string, value: Buffer): string {
-  const words = convertBits(value, 8, 5, true);
+  const words = bech32.toWords(value);
   return bech32.encode(prefix, words, MAX_BECH32_LENGTH);
 }
 
