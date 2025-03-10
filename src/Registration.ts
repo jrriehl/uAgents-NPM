@@ -190,7 +190,7 @@ export class AlmanacApiRegistrationPolicy extends AgentRegistrationPolicy {
     if (success) {
       log("Registration on Almanac API successful", logger);
     } else {
-      log("Registration on Almanac API failed", logger);
+      throw new Error("Registration on Almanac API failed");
     }
   }
 }
@@ -323,7 +323,7 @@ export class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
     if (success) {
       log("Batch registration on Almanac API successful", logger);
     } else {
-      log("Batch registration on Almanac API failed", logger);
+      throw new Error("Batch registration on Almanac API failed");
     }
   }
 }
