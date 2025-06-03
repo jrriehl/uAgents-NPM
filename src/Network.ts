@@ -3,7 +3,7 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Coin } from "@cosmjs/amino";
 
 import { Identity } from "./crypto";
-import { AgentEndpoint, AgentInfo } from "./types";
+import { AddressPrefix, AgentEndpoint, AgentInfo } from "./types";
 import { getLogger, LogLevel, log } from "./utils";
 import {
   ALMANAC_CONTRACT_VERSION,
@@ -47,8 +47,13 @@ export class AlmanacContractRecord implements AgentInfo {
   endpoints!: AgentEndpoint[];
   protocols!: string[];
 
+  prefix: AddressPrefix;
+  metadata: Record<string, string> | null;
+
   constructor(data: Partial<AlmanacContractRecord>) {
     Object.assign(this, data);
+    this.prefix = data.prefix ?? "test-agent";
+    this.metadata = data.metadata ?? null;
   }
 
   sign(identity: Identity): void {
