@@ -2,6 +2,8 @@ export * from 'util';
 import { ec } from 'elliptic';
 import { ZodSchema, z } from 'zod';
 import { SigningStargateClient } from '@cosmjs/stargate';
+import { CosmWasmClient, SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
+import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 
 declare const Agent = "tmp";
 
@@ -568,6 +570,14 @@ type AgentEndpoint = {
     url: string;
     weight: number;
 };
+type AddressPrefix = "agent" | "test-agent";
+type AgentInfo = {
+    agent_address: string;
+    prefix: AddressPrefix;
+    endpoints: AgentEndpoint[];
+    protocols: string[];
+    metadata: Record<string, string> | null;
+};
 /**
  * Delivery Status of a message
  */
@@ -663,7 +673,7 @@ declare const REGISTRATION_DENOM = "atestfet";
 declare const REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600;
 declare const REGISTRATION_RETRY_INTERVAL_SECONDS = 60;
 declare const AVERAGE_BLOCK_INTERVAL = 6;
-declare const ALMANAC_CONTRACT_VERSION = "2.0.0";
+declare const ALMANAC_CONTRACT_VERSION = "2.3.0";
 declare const AGENTVERSE_URL = "https://agentverse.ai";
 declare const ALMANAC_API_URL = "https://agentverse.ai/v1/almanac";
 declare const ALMANAC_API_TIMEOUT_SECONDS = 1;
@@ -716,6 +726,196 @@ declare const mailbox = "tmp";
 
 declare const query = "tmp";
 
+declare class AlmanacContractRecord implements AgentInfo {
+    contract_address: string;
+    sender_address: string;
+    timestamp?: number;
+    signature?: string;
+    agent_address: string;
+    endpoints: AgentEndpoint[];
+    protocols: string[];
+    prefix: AddressPrefix;
+    metadata: Record<string, string> | null;
+    constructor(data: Partial<AlmanacContractRecord>);
+    sign(identity: Identity): void;
+}
+/**
+ * A class representing the Almanac contract for agent registration.
+ *
+ * This class provides methods to interact with the Almanac contract, including
+ * checking if an agent is registered, retrieving the expiry height of an agent's
+ * registration, and getting the endpoints associated with an agent's registration.
+ */
+declare class AlmanacContract {
+    private client;
+    private address;
+    constructor(client: CosmWasmClient, contractAddress: string);
+    /**
+     * Check if the contract version supported by this version of uAgents matches the
+     * deployed version (major version must match).
+     *
+     * @returns True if the contract major version is supported, False otherwise
+     */
+    checkVersion(): Promise<boolean>;
+    /**
+     * Execute a query with additional checks and error handling.
+     *
+     * @param queryMsg - The query message
+     * @returns The query response
+     * @throws Error if the contract address is not set or the query fails
+     */
+    queryContract(queryMsg: Record<string, any>): Promise<any>;
+    /**
+     * Get the version of the contract.
+     *
+     * @returns The version of the contract
+     */
+    getContractVersion(): Promise<string>;
+    /**
+     * Get the contract address.
+     *
+     * @returns The contract address
+     */
+    getAddress(): string;
+    /**
+     * Check if an agent is registered in the Almanac contract.
+     *
+     * @param address - The agent's address
+     * @returns True if the agent is registered, False otherwise
+     */
+    isRegistered(address: string): Promise<boolean>;
+    /**
+     * Check if an agent's registration needs to be updated.
+     *
+     * @param address - The agent's address
+     * @param endpoints - The agent's endpoints
+     * @param protocols - The agent's protocols
+     * @param minSecondsLeft - The minimum time left before the agent's registration expires
+     * @returns True if registration needs update, False otherwise
+     */
+    registrationNeedsUpdate(address: string, endpoints: AgentEndpoint[], protocols: string[], minSecondsLeft: number): Promise<boolean>;
+    /**
+     * Get the records associated with an agent's registration.
+     *
+     * @param address - The agent's address
+     * @returns Tuple of [seconds to expiry, endpoints, protocols]
+     */
+    queryAgentRecord(address: string): Promise<[number, AgentEndpoint[], string[]]>;
+    /**
+     * Get the approximate seconds to expiry of an agent's registration.
+     *
+     * @param address - The agent's address
+     * @returns The approximate seconds to expiry
+     */
+    getExpiry(address: string): Promise<number>;
+    /**
+     * Get the endpoints associated with an agent's registration.
+     *
+     * @param address - The agent's address
+     * @returns The agent's registered endpoints
+     */
+    getEndpoints(address: string): Promise<AgentEndpoint[]>;
+    /**
+     * Get the protocols associated with an agent's registration.
+     *
+     * @param address - The agent's address
+     * @returns The agent's registered protocols
+     */
+    getProtocols(address: string): Promise<string[]>;
+    /**
+     * Get the registration message for the contract.
+     */
+    private getRegistrationMsg;
+    /**
+     * Register an agent with the Almanac contract.
+     *
+     * @param client - The SigningCosmWasmClient instance
+     * @param wallet - The agent's wallet
+     * @param agentAddress - The agent's address
+     * @param protocols - List of protocols
+     * @param endpoints - List of endpoints
+     * @param signature - The agent's signature
+     * @param currentTime - Current timestamp
+     */
+    register(client: SigningCosmWasmClient, wallet: DirectSecp256k1HdWallet, agentAddress: string, protocols: string[], endpoints: AgentEndpoint[], signature: string, currentTime: number): Promise<void>;
+    /**
+     * Register multiple agents with the Almanac contract.
+     *
+     * @param client - The SigningCosmWasmClient instance
+     * @param wallet - The wallet of the registration sender
+     * @param agentRecords - The list of signed agent records to register
+     */
+    registerBatch(client: SigningCosmWasmClient, wallet: DirectSecp256k1HdWallet, agentRecords: AlmanacContractRecord[]): Promise<void>;
+    /**
+     * Get the agent's sequence number for Almanac registration.
+     *
+     * @param address - The agent's address
+     * @returns The agent's sequence number
+     */
+    getSequence(address: string): Promise<number>;
+}
+
+declare abstract class AgentRegistrationPolicy {
+    abstract register(agentIdentifier: string, protocols: string[], endpoints: AgentEndpoint[], metadata: Record<string, string> | null): Promise<void>;
+}
+declare abstract class BatchRegistrationPolicy {
+    abstract addAgent(agentInfo: AgentInfo, identity: Identity): void;
+    abstract register(): Promise<void>;
+}
+declare class AlmanacApiRegistrationPolicy extends AgentRegistrationPolicy {
+    private identity;
+    private almanacApi;
+    private maxRetries;
+    constructor(identity: Identity, almanacApi?: string);
+    register(agentIdentifier: string, protocols: string[], endpoints: AgentEndpoint[], metadata?: Record<string, string> | null): Promise<void>;
+}
+declare class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
+    private identity;
+    private ledger;
+    private wallet;
+    private almanacContract;
+    private testnet;
+    constructor(identity: Identity, ledger: any, wallet: any, almanacContract: AlmanacContract, testnet: boolean);
+    /**
+     * Register the agent on the Almanac contract if registration is about to expire or
+     * the registration data has changed.
+     */
+    register(agentIdentifier: string, protocols: string[], endpoints: AgentEndpoint[], metadata?: Record<string, string> | null): Promise<void>;
+}
+declare class BatchAlmanacApiRegistrationPolicy extends BatchRegistrationPolicy {
+    private almanacApi;
+    private attestations;
+    private maxRetries;
+    constructor(almanacApi?: string);
+    addAgent(agentInfo: AgentInfo, identity: Identity): void;
+    register(): Promise<void>;
+}
+declare class BatchLedgerRegistrationPolicy extends BatchRegistrationPolicy {
+    private ledger;
+    private wallet;
+    private almanacContract;
+    private testnet;
+    private records;
+    private identities;
+    constructor(ledger: any, wallet: any, almanacContract: AlmanacContract, testnet: boolean);
+    addAgent(agentInfo: AgentInfo, identity: Identity): void;
+    private getBalance;
+    register(): Promise<void>;
+}
+declare class DefaultRegistrationPolicy extends AgentRegistrationPolicy {
+    private apiPolicy;
+    private ledgerPolicy?;
+    constructor(identity: Identity, ledger?: any, wallet?: any, almanacContract?: AlmanacContract, testnet?: boolean);
+    register(agentAddress: string, protocols: string[], endpoints: AgentEndpoint[], metadata?: Record<string, string> | null): Promise<void>;
+}
+declare class DefaultBatchRegistrationPolicy extends BatchRegistrationPolicy {
+    private apiPolicy;
+    private ledgerPolicy?;
+    constructor(ledger?: any, wallet?: any, almanacContract?: AlmanacContract, testnet?: boolean);
+    addAgent(agentInfo: AgentInfo, identity: Identity): void;
+    register(): Promise<void>;
+}
+
 declare const Wallet = "tmp";
 
-export { AGENTVERSE_URL, AGENT_ADDRESS_LENGTH, AGENT_PREFIX, ALMANAC_API_MAX_RETRIES, ALMANAC_API_TIMEOUT_SECONDS, ALMANAC_API_URL, ALMANAC_CONTRACT_VERSION, ALMANAC_REGISTRATION_WAIT, ASGI, AVERAGE_BLOCK_INTERVAL, Agent, type AgentRepresentation, AlmanacApiResolver, AlmanacContractResolver, Context, type ContextType, DEFAULT_ENVELOPE_TIMEOUT_SECONDS, DEFAULT_MAX_ENDPOINTS, DEFAULT_SEARCH_LIMIT, type Dispenser, Envelope, EnvelopeHistory, EnvelopeHistoryEntry, ErrorMessage, type ErrorMessageType, ExternalContext, GlobalResolver, Identity, InternalContext, KeyValueStore, LEDGER_PREFIX, MAILBOX_POLL_INTERVAL_SECONDS, MAINNET_CONTRACT_ALMANAC, MAINNET_CONTRACT_NAME_SERVICE, MAINNET_PREFIX, MAINNET_RPC, Model, NameServiceResolver, Protocol, REGISTRATION_DENOM, REGISTRATION_FEE, REGISTRATION_RETRY_INTERVAL_SECONDS, REGISTRATION_UPDATE_INTERVAL_SECONDS, RESPONSE_TIME_HINT_SECONDS, Resolver, RulesBasedResolver, TESTNET_CONTRACT_ALMANAC, TESTNET_CONTRACT_NAME_SERVICE, TESTNET_FAUCET, TESTNET_PREFIX, TESTNET_RPC, USER_PREFIX, WALLET_MESSAGING_POLL_INTERVAL_SECONDS, Wallet, deriveKeyFromSeed, dispatcher, encloseResponse, encloseResponseRaw, encodeLengthPrefixed, generateUserAddress, isUserAddress, mailbox, parseAgentverseConfig, parseEndpointConfig, parseIdentifier, query, sendMessage, sendSyncMessage };
+export { AGENTVERSE_URL, AGENT_ADDRESS_LENGTH, AGENT_PREFIX, ALMANAC_API_MAX_RETRIES, ALMANAC_API_TIMEOUT_SECONDS, ALMANAC_API_URL, ALMANAC_CONTRACT_VERSION, ALMANAC_REGISTRATION_WAIT, ASGI, AVERAGE_BLOCK_INTERVAL, Agent, type AgentRepresentation, AlmanacApiRegistrationPolicy, AlmanacApiResolver, AlmanacContractResolver, BatchAlmanacApiRegistrationPolicy, BatchLedgerRegistrationPolicy, Context, type ContextType, DEFAULT_ENVELOPE_TIMEOUT_SECONDS, DEFAULT_MAX_ENDPOINTS, DEFAULT_SEARCH_LIMIT, DefaultBatchRegistrationPolicy, DefaultRegistrationPolicy, type Dispenser, Envelope, EnvelopeHistory, EnvelopeHistoryEntry, ErrorMessage, type ErrorMessageType, ExternalContext, GlobalResolver, Identity, InternalContext, KeyValueStore, LEDGER_PREFIX, LedgerBasedRegistrationPolicy, MAILBOX_POLL_INTERVAL_SECONDS, MAINNET_CONTRACT_ALMANAC, MAINNET_CONTRACT_NAME_SERVICE, MAINNET_PREFIX, MAINNET_RPC, Model, NameServiceResolver, Protocol, REGISTRATION_DENOM, REGISTRATION_FEE, REGISTRATION_RETRY_INTERVAL_SECONDS, REGISTRATION_UPDATE_INTERVAL_SECONDS, RESPONSE_TIME_HINT_SECONDS, Resolver, RulesBasedResolver, TESTNET_CONTRACT_ALMANAC, TESTNET_CONTRACT_NAME_SERVICE, TESTNET_FAUCET, TESTNET_PREFIX, TESTNET_RPC, USER_PREFIX, WALLET_MESSAGING_POLL_INTERVAL_SECONDS, Wallet, deriveKeyFromSeed, dispatcher, encloseResponse, encloseResponseRaw, encodeLengthPrefixed, generateUserAddress, isUserAddress, mailbox, parseAgentverseConfig, parseEndpointConfig, parseIdentifier, query, sendMessage, sendSyncMessage };
