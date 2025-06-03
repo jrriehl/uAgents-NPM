@@ -16,7 +16,7 @@ export const REGISTRATION_DENOM = "atestfet";
 export const REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600;
 export const REGISTRATION_RETRY_INTERVAL_SECONDS = 60;
 export const AVERAGE_BLOCK_INTERVAL = 6;
-export const ALMANAC_CONTRACT_VERSION = "2.0.0";
+export const ALMANAC_CONTRACT_VERSION = "2.3.0";
 
 export const AGENTVERSE_URL = "https://agentverse.ai";
 export const ALMANAC_API_URL = `${AGENTVERSE_URL}/v1/almanac`;

@@ -176,18 +176,20 @@ export class AlmanacContract {
 
   /**
    * Check if the contract version supported by this version of uAgents matches the
-   * deployed version.
+   * deployed version (major version must match).
    * 
-   * @returns True if the contract version is supported, False otherwise
+   * @returns True if the contract major version is supported, False otherwise
    */
   async checkVersion(): Promise<boolean> {
     try {
       const deployedVersion = await this.getContractVersion();
-      if (deployedVersion !== ALMANAC_CONTRACT_VERSION) {
+      const [deployedMajor] = deployedVersion.split(".");
+      const [expectedMajor] = ALMANAC_CONTRACT_VERSION.split(".");
+      if (deployedMajor !== expectedMajor) {
         log(
           `The deployed version of the Almanac Contract is ${deployedVersion} ` +
           `and you are using version ${ALMANAC_CONTRACT_VERSION}. ` +
-          "Update uAgents to the latest version to enable contract interactions.",
+          "Update uAgents to the latest version to ensure compatibility.",
           logger
         );
         return false;

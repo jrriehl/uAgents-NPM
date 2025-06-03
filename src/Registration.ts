@@ -218,20 +218,6 @@ export class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
   }
 
   /**
-   * Check the version of the deployed Almanac contract and log a warning
-   * if it is different from the supported version.
-   */
-  private async checkContractVersion() {
-    const deployedVersion = await this.almanacContract.getContractVersion();
-    if (deployedVersion !== ALMANAC_CONTRACT_VERSION) {
-      log(
-        `Contract version mismatch: deployed=${deployedVersion}, supported=${ALMANAC_CONTRACT_VERSION}`,
-        logger
-      );
-    }
-  }
-
-  /**
    * Register the agent on the Almanac contract if registration is about to expire or
    * the registration data has changed.
    */
@@ -241,7 +227,6 @@ export class LedgerBasedRegistrationPolicy extends AgentRegistrationPolicy {
     endpoints: AgentEndpoint[],
     metadata: Record<string, string> | null = null
   ): Promise<void> {
-    await this.checkContractVersion();
 
     const agentAddress = parseIdentifier(agentIdentifier)[2];
     const isRegistered = await this.almanacContract.isRegistered(agentAddress);
